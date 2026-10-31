@@ -1,0 +1,15 @@
+export const APPS={retro:null,palette:null,watchlist:null};
+export const blank=()=>({title:'Untitled workflow',description:'',inputs:[],steps:[]});
+const input=(name,label,type='text',extra={})=>({name,label,type,required:true,...extra});
+export function template(name,apps=APPS){
+ const required={image:['palette'],character:['retro','palette'],movies:['watchlist']}[name]||[];
+ if(required.some(key=>!apps[key]))throw Error('Install the required apps before using this template: '+required.filter(key=>!apps[key]).join(', '));
+ if(name==='image')return{title:'Image to palette',description:'Analyse an image and save a CSS palette alongside the report.',inputs:[input('image','Source image','file',{accepts:['image/png']})],steps:[{id:'analyse',appId:apps.palette,commandId:'analyse-png',bindings:{file:{source:'input',name:'image'}}},{id:'css',appId:apps.palette,commandId:'palette-css',bindings:{analysis:{source:'step',stepId:'analyse',path:'analysis.id'}}}]};
+ if(name==='character')return{title:'Character study',description:'Generate a portrait and walk cycle, analyse the portrait, and export its palette.',inputs:[input('prompt','Character prompt'),input('seed','Seed','number',{default:1})],steps:[{id:'generate',appId:apps.retro,commandId:'generate',bindings:{prompt:{source:'input',name:'prompt'},seed:{source:'input',name:'seed'}}},{id:'analyse',appId:apps.palette,commandId:'analyse-png',bindings:{file:{source:'step',stepId:'generate',path:'job.portrait.id'}}},{id:'css',appId:apps.palette,commandId:'palette-css',bindings:{analysis:{source:'step',stepId:'analyse',path:'analysis.id'}}}]};
+ if(name==='movies')return{title:'Find a movie',description:'Search the shared movie app from a reusable command.',inputs:[input('title','Movie title')],steps:[{id:'search',appId:apps.watchlist,commandId:'search',bindings:{query:{source:'input',name:'title'}}}]};
+ return blank();
+}
+export function removeStep(definition,index){const next=structuredClone(definition),removed=next.steps.splice(index,1)[0];for(const step of next.steps)for(const[name,binding]of Object.entries(step.bindings))if(binding.source==='step'&&binding.stepId===removed.id)delete step.bindings[name];return next;}
+export function moveStep(definition,index,delta){const next=structuredClone(definition),target=index+delta;if(target<0||target>=next.steps.length)return next;[next.steps[index],next.steps[target]]=[next.steps[target],next.steps[index]];const seen=new Set();for(const step of next.steps){for(const binding of Object.values(step.bindings))if(binding.source==='step'&&!seen.has(binding.stepId))throw Error('Move the dependent step first, or change its input binding.');seen.add(step.id);}return next;}
+export function parseLiteral(value,type){if(type==='number'){if(value==='')return undefined;const n=Number(value);if(!Number.isFinite(n))throw Error('Enter a number');return n;}if(type==='boolean')return value===true||value==='true';return value;}
+export const effectLabel=effect=>effect==='paid'?'Uses credits':effect==='read'?'Read only':'Changes data';

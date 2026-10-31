@@ -1,0 +1,6 @@
+import test from'node:test';import assert from'node:assert/strict';import{template,moveStep,removeStep,parseLiteral}from'../web/model.mjs';
+test('templates pass generated image and analysis identities to later apps',()=>{const d=template('character',{retro:'a'.repeat(32),palette:'b'.repeat(32)});assert.equal(d.steps[1].bindings.file.path,'job.portrait.id');assert.equal(d.steps[2].bindings.analysis.stepId,'analyse');assert.equal(template('image',{palette:'b'.repeat(32)}).inputs[0].accepts[0],'image/png');});
+test('reordering preserves dependency order and removing a step clears dangling bindings',()=>{const d=template('character',{retro:'a'.repeat(32),palette:'b'.repeat(32)});assert.throws(()=>moveStep(d,0,1),/dependent/);const next=removeStep(d,0);assert.deepEqual(next.steps[0].bindings,{});assert.equal(next.steps[1].bindings.analysis.stepId,'analyse');});
+test('literal conversion preserves boolean and numeric types',()=>{assert.equal(parseLiteral('42','number'),42);assert.equal(parseLiteral('false','boolean'),false);assert.throws(()=>parseLiteral('wrong','number'));});
+
+test('templates reject missing providers instead of retaining installation IDs',()=>{assert.throws(()=>template('image'),/Install the required apps/);});
